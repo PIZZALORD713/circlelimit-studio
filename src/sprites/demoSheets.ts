@@ -62,16 +62,6 @@ export const DEMO_SHEETS: DemoSheet[] = [
     columns: 8,
     placementMode: "symmetry-echo",
   },
-  {
-    id: "murmuration",
-    label: "Flock — Murmuration",
-    description: "Eight flock formations. Dense, drifting, alive.",
-    src: `${BASE}/starling-murmuration.png`,
-    thumb: `${BASE}/thumb/starling-murmuration.png`,
-    rows: 1,
-    columns: 8,
-    placementMode: "sequential-ring",
-  },
 ];
 
 export const DEFAULT_DEMO_ID = "flight";
