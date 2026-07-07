@@ -54,6 +54,25 @@ video (MP4 where the browser's MediaRecorder supports H.264, WebM otherwise;
 records in real time — keep the tab visible), PNG sequence, and settings JSON
 export/import. SVG export is Phase 2.
 
+## Programmatic / AI control API
+
+Every pixel is a pure function of four serializable state objects, so the studio
+is fully scriptable. Mounting the app installs `window.circleLimit` — inspect
+the control schema, patch any control, step the animation, and read the current
+frame back as a PNG (so a vision model can close the loop):
+
+```js
+window.circleLimit.patch({ symmetry: 6, stylePreset: "stained-glass-swarm",
+                           lensStrength: 0.45, placementMode: "spiral-motion" });
+const png = window.circleLimit.snapshot();   // data:image/png;base64,…
+```
+
+The machine-readable control vocabulary lives in `src/engine/controlSchema.ts`
+(`describeControls()` renders it as an LLM-ready prompt block); the runtime
+bridge in `src/engine/bridge.ts` also answers `postMessage`, so the studio can
+be embedded in an iframe and driven by a parent window. See
+[docs/AI-API.md](docs/AI-API.md) for the full contract and examples.
+
 ## Architecture
 
 ```
@@ -62,6 +81,7 @@ src/
   motifs/      motifTypes.ts · proceduralMotifs.ts · promptMotifAdapter.ts · imageMotifAdapter.ts
   sprites/     sliceSpriteSheet.ts · spriteMapping.ts
   render/      canvasRenderer.ts (pure scene → canvas)
+  engine/      controlSchema.ts (AI control vocabulary) · bridge.ts (window.circleLimit)
   export/      exportPNG.ts · exportAnimation.ts · exportSVG.ts (Phase 2 stub)
   state/       useStudioState.ts (settings, quality caps, JSON import/export)
   styles/      presets.ts

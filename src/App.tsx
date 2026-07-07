@@ -38,6 +38,7 @@ import { ExportControls } from "./components/ExportControls";
 import { CircleLimitCanvas } from "./components/CircleLimitCanvas";
 import { PlaybackBar } from "./components/PlaybackBar";
 import { InspectorPanel } from "./components/InspectorPanel";
+import { useCircleLimitBridge } from "./engine/bridge";
 
 type Route = "studio" | "about";
 
@@ -263,6 +264,18 @@ export default function App() {
 
   // ---- Export handlers ---------------------------------------------------
   const currentAnimOffset = animation.playing ? liveFrame : animation.scrubFrame;
+
+  // Programmatic / AI-drivable control surface: installs window.circleLimit and
+  // answers postMessage. Additive — the UI is unchanged whether or not it's used.
+  useCircleLimitBridge({
+    studio,
+    buildScene,
+    currentOffset: currentAnimOffset,
+    exportSize: caps.exportSize,
+    frameCount: s.inputMode === "spritesheet" ? frames.length : 0,
+    placementCount: placements.length,
+    selectDemo: handleSelectDemo,
+  });
 
   const handleExportPNG = useCallback(
     async (transparent: boolean) => {
