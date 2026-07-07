@@ -68,12 +68,12 @@ export interface AnimationSettings {
 }
 
 export const DEFAULT_SETTINGS: StudioSettings = {
-  inputMode: "prompt",
+  inputMode: "spritesheet",
   prompt: "black ink ravens flying in a spiral",
   stylePreset: "ink-limit",
-  symmetry: 6,
-  ringCount: 10,
-  density: 1.6,
+  symmetry: 8,
+  ringCount: 9,
+  density: 1.5,
   edgeCompression: 1,
   motifScale: 1,
   spiralOffset: 0,
@@ -99,11 +99,11 @@ export const DEFAULT_IMAGE_OPTIONS: ImageOptionsState = {
 };
 
 export const DEFAULT_ANIMATION: AnimationSettings = {
-  playing: false,
-  fps: 8,
+  playing: true,
+  fps: 10,
   loop: true,
   pingPong: false,
-  placementMode: "sequential-ring",
+  placementMode: "zoetrope-ring",
   direction: 1,
   onionSkinCount: 0,
   onionSkinOpacity: 0.5,

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AboutPage } from "./components/AboutPage";
 import {
   QUALITY_CAPS,
@@ -11,6 +11,12 @@ import { buildProceduralVariants } from "./motifs/proceduralMotifs";
 import { familyFromPrompt } from "./motifs/promptMotifAdapter";
 import { createMotifFromImage, loadImageFile } from "./motifs/imageMotifAdapter";
 import { sliceSpriteSheet } from "./sprites/sliceSpriteSheet";
+import {
+  DEMO_SHEETS,
+  DEFAULT_DEMO_ID,
+  loadDemoBitmap,
+  type DemoSheet,
+} from "./sprites/demoSheets";
 import type { RenderScene } from "./render/canvasRenderer";
 import { exportScenePNG, downloadBlob } from "./export/exportPNG";
 import {
@@ -74,6 +80,7 @@ export default function App() {
   const [liveFrame, setLiveFrame] = useState(0);
   const [imageBitmap, setImageBitmap] = useState<ImageBitmap | null>(null);
   const [sheetBitmap, setSheetBitmap] = useState<ImageBitmap | null>(null);
+  const [activeDemoId, setActiveDemoId] = useState<string | null>(null);
 
   const say = useCallback((msg: string) => setToast(msg), []);
   useEffect(() => {
@@ -205,6 +212,7 @@ export default function App() {
       say("Mapping frames into disk…");
       try {
         setSheetBitmap(await loadImageFile(file));
+        setActiveDemoId(null);
         studio.updateAnimation({ scrubFrame: 0, playing: false });
       } catch {
         say("Could not read that sprite sheet.");
@@ -212,6 +220,46 @@ export default function App() {
     },
     [say, studio],
   );
+
+  const applyDemo = useCallback(
+    async (demo: DemoSheet, announce: boolean, autoplay: boolean) => {
+      try {
+        const bitmap = await loadDemoBitmap(demo);
+        setSheetBitmap(bitmap);
+        setActiveDemoId(demo.id);
+        studio.updateSpriteConfig({ rows: demo.rows, columns: demo.columns });
+        studio.updateAnimation({
+          placementMode: demo.placementMode,
+          scrubFrame: 0,
+          playing: autoplay,
+        });
+        if (announce) say("Mapping frames into disk…");
+      } catch {
+        if (announce) say("Could not load that demo sheet.");
+      }
+    },
+    [say, studio],
+  );
+
+  const handleSelectDemo = useCallback(
+    (demo: DemoSheet) => {
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      void applyDemo(demo, true, !reduced);
+    },
+    [applyDemo],
+  );
+
+  // Open the app on a live starling tessellation so the strongest feature is
+  // visible with zero clicks. Runs once; upload/selection cancels the intent.
+  const didAutoloadRef = useRef(false);
+  useEffect(() => {
+    if (didAutoloadRef.current) return;
+    didAutoloadRef.current = true;
+    const demo = DEMO_SHEETS.find((d) => d.id === DEFAULT_DEMO_ID);
+    if (!demo) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    void applyDemo(demo, false, !reduced);
+  }, [applyDemo]);
 
   // ---- Export handlers ---------------------------------------------------
   const currentAnimOffset = animation.playing ? liveFrame : animation.scrubFrame;
@@ -418,6 +466,8 @@ export default function App() {
               <SpriteSheetUploadPanel
                 studio={studio}
                 onFile={handleSheetFile}
+                onSelectDemo={handleSelectDemo}
+                activeDemoId={activeDemoId}
                 hasSheet={sheetBitmap !== null}
                 frameCount={frames.length}
               />

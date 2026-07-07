@@ -4,11 +4,12 @@ import type { InputMode } from "../motifs/motifTypes";
 import { familyFromPrompt } from "../motifs/promptMotifAdapter";
 import type { ImageFitMode } from "../motifs/imageMotifAdapter";
 import { Slider, Toggle, Select, NumberField } from "./Slider";
+import { DEMO_SHEETS, OPEN_SPRITE_RESOURCES, type DemoSheet } from "../sprites/demoSheets";
 
 const MODES: { id: InputMode; label: string }[] = [
+  { id: "spritesheet", label: "Sprite Sheet" },
   { id: "prompt", label: "Prompt" },
   { id: "image", label: "Image" },
-  { id: "spritesheet", label: "Sprite Sheet" },
 ];
 
 export function InputModeTabs({ studio }: { studio: StudioState }) {
@@ -165,11 +166,15 @@ export function ImageUploadPanel({
 export function SpriteSheetUploadPanel({
   studio,
   onFile,
+  onSelectDemo,
+  activeDemoId,
   hasSheet,
   frameCount,
 }: {
   studio: StudioState;
   onFile: (file: File) => void;
+  onSelectDemo: (demo: DemoSheet) => void;
+  activeDemoId: string | null;
   hasSheet: boolean;
   frameCount: number;
 }) {
@@ -177,6 +182,24 @@ export function SpriteSheetUploadPanel({
   const inputRef = useRef<HTMLInputElement>(null);
   return (
     <section className="panel-section" aria-label="Sprite sheet upload">
+      <h3>Demo sprites</h3>
+      <p className="hint">Pick a starling animation to see it fill the disk instantly.</p>
+      <div className="demo-bank" role="listbox" aria-label="Demo sprite sheets">
+        {DEMO_SHEETS.map((demo) => (
+          <button
+            key={demo.id}
+            role="option"
+            aria-selected={activeDemoId === demo.id}
+            className={`demo-card${activeDemoId === demo.id ? " active" : ""}`}
+            onClick={() => onSelectDemo(demo)}
+            title={demo.description}
+          >
+            <img src={demo.thumb} alt="" loading="lazy" />
+            <span className="demo-card-label">{demo.label}</span>
+          </button>
+        ))}
+      </div>
+
       <input
         ref={inputRef}
         type="file"
@@ -189,9 +212,22 @@ export function SpriteSheetUploadPanel({
         }}
       />
       <button className="upload-zone" onClick={() => inputRef.current?.click()}>
-        {hasSheet ? "Replace sprite sheet…" : "Upload a sprite sheet or animation strip"}
+        {hasSheet ? "Replace with your own sheet…" : "…or upload your own sprite sheet"}
         <span className="hint">Rows × columns grid, sliced locally.</span>
       </button>
+      <details className="demo-resources">
+        <summary>Need sheets? Open-source packs</summary>
+        <ul>
+          {OPEN_SPRITE_RESOURCES.map((r) => (
+            <li key={r.href}>
+              <a href={r.href} target="_blank" rel="noreferrer">
+                {r.label}
+              </a>{" "}
+              <span className="hint">— {r.note}</span>
+            </li>
+          ))}
+        </ul>
+      </details>
       {hasSheet && (
         <>
           <div className="field-pair">
