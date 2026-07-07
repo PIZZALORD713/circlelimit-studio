@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   renderCircleLimitCanvas,
   type RenderScene,
@@ -31,7 +31,9 @@ export function CircleLimitCanvas({
   const viewRef = useRef<ViewTransform>({ zoom: 1, panX: 0, panY: 0 });
   const tickRef = useRef(0);
   const lastFrameRef = useRef(-1);
-  const dragRef = useRef<{ x: number; y: number } | null>(null);
+  const pointersRef = useRef(new Map<number, { x: number; y: number }>());
+  const pinchRef = useRef<{ dist: number; zoom: number } | null>(null);
+  const [viewDirty, setViewDirty] = useState(false);
 
   const draw = useCallback(
     (offset: number) => {
@@ -122,31 +124,55 @@ export function CircleLimitCanvas({
     draw,
   ]);
 
+  const markDirty = () => {
+    const v = viewRef.current;
+    setViewDirty(v.zoom !== 1 || v.panX !== 0 || v.panY !== 0);
+  };
+
   const handleWheel = (e: React.WheelEvent) => {
     const view = viewRef.current;
-    const next = Math.min(8, Math.max(0.5, view.zoom * Math.exp(-e.deltaY * 0.0015)));
-    view.zoom = next;
+    view.zoom = Math.min(8, Math.max(0.5, view.zoom * Math.exp(-e.deltaY * 0.0015)));
     draw(currentOffset());
+    markDirty();
+  };
+
+  const pinchDistance = () => {
+    const pts = [...pointersRef.current.values()];
+    return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    dragRef.current = { x: e.clientX, y: e.clientY };
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     (e.target as Element).setPointerCapture(e.pointerId);
+    if (pointersRef.current.size === 2) {
+      pinchRef.current = { dist: pinchDistance(), zoom: viewRef.current.zoom };
+    }
   };
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!dragRef.current) return;
+    const prev = pointersRef.current.get(e.pointerId);
+    if (!prev) return;
     const view = viewRef.current;
-    view.panX += e.clientX - dragRef.current.x;
-    view.panY += e.clientY - dragRef.current.y;
-    dragRef.current = { x: e.clientX, y: e.clientY };
+
+    if (pointersRef.current.size === 2 && pinchRef.current) {
+      pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const ratio = pinchDistance() / pinchRef.current.dist;
+      view.zoom = Math.min(8, Math.max(0.5, pinchRef.current.zoom * ratio));
+    } else if (pointersRef.current.size === 1) {
+      view.panX += e.clientX - prev.x;
+      view.panY += e.clientY - prev.y;
+      pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
     draw(currentOffset());
+    markDirty();
   };
-  const handlePointerUp = () => {
-    dragRef.current = null;
+  const handlePointerUp = (e: React.PointerEvent) => {
+    pointersRef.current.delete(e.pointerId);
+    if (pointersRef.current.size < 2) pinchRef.current = null;
   };
   const resetView = () => {
     viewRef.current = { zoom: 1, panX: 0, panY: 0 };
     draw(currentOffset());
+    setViewDirty(false);
   };
 
   return (
@@ -159,8 +185,19 @@ export function CircleLimitCanvas({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
         onDoubleClick={resetView}
       />
+      <div className="stage-overlay">
+        <span className="stage-hint" aria-hidden="true">
+          scroll / pinch to zoom · drag to pan
+        </span>
+        {viewDirty && (
+          <button className="stage-reset" onClick={resetView} aria-label="Reset view">
+            ⌖ Reset view
+          </button>
+        )}
+      </div>
     </div>
   );
 }

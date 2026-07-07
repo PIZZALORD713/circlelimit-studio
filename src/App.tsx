@@ -39,6 +39,17 @@ function routeFromPath(pathname: string): Route {
   return pathname.replace(/\/+$/, "") === "/about" ? "about" : "studio";
 }
 
+type PanelTab = "create" | "motion" | "geometry" | "style" | "export" | "info";
+
+const PANEL_TABS: { id: PanelTab; label: string; spriteOnly?: boolean }[] = [
+  { id: "create", label: "Create" },
+  { id: "motion", label: "Motion", spriteOnly: true },
+  { id: "geometry", label: "Geometry" },
+  { id: "style", label: "Style" },
+  { id: "export", label: "Export" },
+  { id: "info", label: "Info" },
+];
+
 export default function App() {
   const [route, setRoute] = useState<Route>(() => routeFromPath(location.pathname));
   useEffect(() => {
@@ -56,6 +67,8 @@ export default function App() {
   const preset = PRESETS[s.stylePreset];
   const caps = QUALITY_CAPS[s.quality];
 
+  const [panelTab, setPanelTab] = useState<PanelTab>("create");
+  const [inspectorOpen, setInspectorOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [liveFrame, setLiveFrame] = useState(0);
@@ -303,6 +316,13 @@ export default function App() {
 
   const spriteMode = s.inputMode === "spritesheet";
 
+  // Leaving sprite mode while the mobile Motion tab is active strands the tab.
+  useEffect(() => {
+    if (!spriteMode && panelTab === "motion") setPanelTab("create");
+  }, [spriteMode, panelTab]);
+
+  const visibleTabs = PANEL_TABS.filter((t) => !t.spriteOnly || spriteMode);
+
   return (
     <div className="app-shell">
       <header className="top-bar">
@@ -327,53 +347,26 @@ export default function App() {
           >
             About
           </button>
+          {route === "studio" && (
+            <button
+              className="inspector-toggle"
+              aria-expanded={inspectorOpen}
+              onClick={() => setInspectorOpen((v) => !v)}
+            >
+              Inspector
+            </button>
+          )}
         </nav>
       </header>
 
       {route === "about" && <AboutPage onOpenStudio={() => navigate("studio")} />}
 
-      <div className="studio-grid" hidden={route !== "studio"}>
-        <div className="left-panel" role="region" aria-label="Inputs and controls">
-          <InputModeTabs studio={studio} />
-          {s.inputMode === "prompt" && (
-            <PromptInputPanel
-              studio={studio}
-              onGenerate={() => {
-                studio.randomizeSeed();
-                say("Approaching infinity…");
-              }}
-            />
-          )}
-          {s.inputMode === "image" && (
-            <ImageUploadPanel
-              studio={studio}
-              onFile={handleImageFile}
-              hasImage={imageBitmap !== null}
-            />
-          )}
-          {spriteMode && (
-            <SpriteSheetUploadPanel
-              studio={studio}
-              onFile={handleSheetFile}
-              hasSheet={sheetBitmap !== null}
-              frameCount={frames.length}
-            />
-          )}
-          {spriteMode && <SpriteControls studio={studio} />}
-          <GeometryControls studio={studio} />
-          <StyleControls studio={studio} />
-          <ExportControls
-            studio={studio}
-            onExportPNG={handleExportPNG}
-            onExportSequence={handleExportSequence}
-            onExportGIF={handleExportGIF}
-            onExportVideo={handleExportVideo}
-            onExportJSON={handleExportJSON}
-            onImportJSON={handleImportJSON}
-            busy={busy}
-          />
-        </div>
-
+      <div
+        className="studio-grid"
+        hidden={route !== "studio"}
+        data-tab={panelTab}
+        data-inspector={inspectorOpen ? "open" : "closed"}
+      >
         <main className="center-panel" style={{ background: preset.background }}>
           <CircleLimitCanvas
             buildScene={buildScene}
@@ -389,12 +382,86 @@ export default function App() {
           )}
         </main>
 
-        <InspectorPanel
-          studio={studio}
-          motif={activeMotif}
-          frames={frames}
-          placementCount={placements.length}
-          caps={caps}
+        <nav className="panel-tabbar" aria-label="Control sections">
+          {visibleTabs.map((t) => (
+            <button
+              key={t.id}
+              className={panelTab === t.id ? "active" : ""}
+              aria-current={panelTab === t.id ? "true" : undefined}
+              onClick={() => setPanelTab(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
+
+        <div className="left-panel" role="region" aria-label="Inputs and controls">
+          <div className="panel-group" data-group="create">
+            <InputModeTabs studio={studio} />
+            {s.inputMode === "prompt" && (
+              <PromptInputPanel
+                studio={studio}
+                onGenerate={() => {
+                  studio.randomizeSeed();
+                  say("Approaching infinity…");
+                }}
+              />
+            )}
+            {s.inputMode === "image" && (
+              <ImageUploadPanel
+                studio={studio}
+                onFile={handleImageFile}
+                hasImage={imageBitmap !== null}
+              />
+            )}
+            {spriteMode && (
+              <SpriteSheetUploadPanel
+                studio={studio}
+                onFile={handleSheetFile}
+                hasSheet={sheetBitmap !== null}
+                frameCount={frames.length}
+              />
+            )}
+          </div>
+          {spriteMode && (
+            <div className="panel-group" data-group="motion">
+              <SpriteControls studio={studio} />
+            </div>
+          )}
+          <div className="panel-group" data-group="geometry">
+            <GeometryControls studio={studio} />
+          </div>
+          <div className="panel-group" data-group="style">
+            <StyleControls studio={studio} />
+          </div>
+          <div className="panel-group" data-group="export">
+            <ExportControls
+              studio={studio}
+              onExportPNG={handleExportPNG}
+              onExportSequence={handleExportSequence}
+              onExportGIF={handleExportGIF}
+              onExportVideo={handleExportVideo}
+              onExportJSON={handleExportJSON}
+              onImportJSON={handleImportJSON}
+              busy={busy}
+            />
+          </div>
+        </div>
+
+        <div className="inspector-wrap" data-group="info">
+          <InspectorPanel
+            studio={studio}
+            motif={activeMotif}
+            frames={frames}
+            placementCount={placements.length}
+            caps={caps}
+          />
+        </div>
+        <button
+          className="inspector-backdrop"
+          aria-label="Close inspector"
+          tabIndex={inspectorOpen ? 0 : -1}
+          onClick={() => setInspectorOpen(false)}
         />
       </div>
 
