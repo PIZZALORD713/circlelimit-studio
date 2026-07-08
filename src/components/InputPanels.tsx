@@ -4,7 +4,7 @@ import type { InputMode } from "../motifs/motifTypes";
 import { familyFromPrompt } from "../motifs/promptMotifAdapter";
 import type { ImageFitMode } from "../motifs/imageMotifAdapter";
 import { Slider, Toggle, Select, NumberField } from "./Slider";
-import { DEMO_SHEETS, OPEN_SPRITE_RESOURCES, type DemoSheet } from "../sprites/demoSheets";
+import { DEMO_SHEETS, type DemoSheet } from "../sprites/demoSheets";
 
 const MODES: { id: InputMode; label: string }[] = [
   { id: "spritesheet", label: "Sprite Sheet" },
@@ -167,6 +167,7 @@ export function SpriteSheetUploadPanel({
   studio,
   onFile,
   onSelectDemo,
+  onOpenGuide,
   activeDemoId,
   hasSheet,
   frameCount,
@@ -174,6 +175,7 @@ export function SpriteSheetUploadPanel({
   studio: StudioState;
   onFile: (file: File) => void;
   onSelectDemo: (demo: DemoSheet) => void;
+  onOpenGuide: () => void;
   activeDemoId: string | null;
   hasSheet: boolean;
   frameCount: number;
@@ -215,19 +217,10 @@ export function SpriteSheetUploadPanel({
         {hasSheet ? "Replace with your own sheet…" : "…or upload your own sprite sheet"}
         <span className="hint">Rows × columns grid, sliced locally.</span>
       </button>
-      <details className="demo-resources">
-        <summary>Need sheets? Open-source packs</summary>
-        <ul>
-          {OPEN_SPRITE_RESOURCES.map((r) => (
-            <li key={r.href}>
-              <a href={r.href} target="_blank" rel="noreferrer">
-                {r.label}
-              </a>{" "}
-              <span className="hint">— {r.note}</span>
-            </li>
-          ))}
-        </ul>
-      </details>
+      <button type="button" className="guide-link" onClick={onOpenGuide}>
+        Make your own sheet with AI
+        <span className="hint">Prompt any image generator for a CircleLimit-ready sheet →</span>
+      </button>
       {hasSheet && (
         <>
           <div className="field-pair">

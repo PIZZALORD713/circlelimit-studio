@@ -66,13 +66,6 @@ export const DEMO_SHEETS: DemoSheet[] = [
 
 export const DEFAULT_DEMO_ID = "flight";
 
-/** Curated open, permissively-licensed sprite-sheet resources for BYO sheets. */
-export const OPEN_SPRITE_RESOURCES: { label: string; href: string; note: string }[] = [
-  { label: "Kenney", href: "https://kenney.nl/assets", note: "CC0 game assets" },
-  { label: "OpenGameArt", href: "https://opengameart.org/", note: "mixed open licenses" },
-  { label: "itch.io sprites", href: "https://itch.io/game-assets/free/tag-sprites", note: "free asset packs" },
-];
-
 export async function loadDemoBitmap(sheet: DemoSheet): Promise<ImageBitmap> {
   const res = await fetch(sheet.src);
   if (!res.ok) throw new Error(`Failed to load demo sheet: ${sheet.label}`);

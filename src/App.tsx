@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AboutPage } from "./components/AboutPage";
+import { PromptGuidePage } from "./components/PromptGuidePage";
 import {
   QUALITY_CAPS,
   useStudioState,
@@ -40,11 +41,20 @@ import { PlaybackBar } from "./components/PlaybackBar";
 import { InspectorPanel } from "./components/InspectorPanel";
 import { useCircleLimitBridge } from "./engine/bridge";
 
-type Route = "studio" | "about";
+type Route = "studio" | "about" | "guide";
 
 function routeFromPath(pathname: string): Route {
-  return pathname.replace(/\/+$/, "") === "/about" ? "about" : "studio";
+  const clean = pathname.replace(/\/+$/, "");
+  if (clean === "/about") return "about";
+  if (clean === "/guide") return "guide";
+  return "studio";
 }
+
+const ROUTE_PATHS: Record<Route, string> = {
+  studio: "/",
+  about: "/about",
+  guide: "/guide",
+};
 
 type PanelTab = "create" | "motion" | "geometry" | "style" | "export" | "info";
 
@@ -65,7 +75,7 @@ export default function App() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
   const navigate = useCallback((next: Route) => {
-    history.pushState(null, "", next === "about" ? "/about" : "/");
+    history.pushState(null, "", ROUTE_PATHS[next]);
     setRoute(next);
   }, []);
 
@@ -402,6 +412,13 @@ export default function App() {
             Studio
           </button>
           <button
+            className={route === "guide" ? "active" : ""}
+            aria-current={route === "guide" ? "page" : undefined}
+            onClick={() => navigate("guide")}
+          >
+            Prompt Guide
+          </button>
+          <button
             className={route === "about" ? "active" : ""}
             aria-current={route === "about" ? "page" : undefined}
             onClick={() => navigate("about")}
@@ -421,6 +438,7 @@ export default function App() {
       </header>
 
       {route === "about" && <AboutPage onOpenStudio={() => navigate("studio")} />}
+      {route === "guide" && <PromptGuidePage onOpenStudio={() => navigate("studio")} />}
 
       <div
         className="studio-grid"
@@ -480,6 +498,7 @@ export default function App() {
                 studio={studio}
                 onFile={handleSheetFile}
                 onSelectDemo={handleSelectDemo}
+                onOpenGuide={() => navigate("guide")}
                 activeDemoId={activeDemoId}
                 hasSheet={sheetBitmap !== null}
                 frameCount={frames.length}
