@@ -54,6 +54,15 @@ video (MP4 where the browser's MediaRecorder supports H.264, WebM otherwise;
 records in real time — keep the tab visible), PNG sequence, and settings JSON
 export/import. SVG export is Phase 2.
 
+## Share
+
+Every scene serializes into the URL (`#s=…` — non-default controls only,
+deflated + base64url, ~200 characters). The hash stays live as you edit, and
+**Copy scene link** (Share & export panel) copies a URL that reproduces the
+scene pixel-exactly — same seed, same motion. Bundled demo sheets travel by
+id; uploaded assets are not embedded (the link restores all settings and asks
+for the asset).
+
 ## Programmatic / AI control API
 
 Every pixel is a pure function of four serializable state objects, so the studio
@@ -92,7 +101,9 @@ Motif variants are pre-rendered to offscreen canvases per palette color; the ren
 loop is pure `drawImage` stamping. Placements are memoized on geometry settings and
 capped by quality mode (Draft / Balanced / High / Poster).
 
-See [PLAN.md](PLAN.md) for the full product plan, algorithms, and Phase 2 roadmap.
+See [PLAN.md](PLAN.md) for the full product plan and algorithms, and
+[PHASE2.md](PHASE2.md) for the Phase 2 plan: scene URLs (shipped) →
+natural-language command bar → AI jam mode.
 
 ## Legal note
 
