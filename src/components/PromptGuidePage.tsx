@@ -116,6 +116,29 @@ const PRACTICES: { title: string; body: ReactNode }[] = [
   },
 ];
 
+const PLACEMENT_MODES: { name: string; when: string; ask: string }[] = [
+  {
+    name: "Sequential Ring / Zoetrope Ring",
+    when: "smooth looping cycles",
+    ask: "First and last frames should connect cleanly as a loop; the motion should read clearly when frames are arranged around a circle.",
+  },
+  {
+    name: "Radial Timeline",
+    when: "transformation over time, mapped center-to-edge",
+    ask: "The sequence should progress from calm / small / early motion to energetic / expanded / late motion.",
+  },
+  {
+    name: "Spiral Motion",
+    when: "directional action",
+    ask: "The motion should flow forward, with each pose naturally leading into the next.",
+  },
+  {
+    name: "Onion Skin Manuscript",
+    when: "clean silhouettes, since earlier frames layer underneath at fading opacity",
+    ask: "The silhouette should stay readable when faded earlier frames are layered beneath it.",
+  },
+];
+
 export function PromptGuidePage({ onOpenStudio }: { onOpenStudio: () => void }) {
   return (
     <main className="about-page">
@@ -173,6 +196,22 @@ export function PromptGuidePage({ onOpenStudio }: { onOpenStudio: () => void }) 
           above. Everything else can stay at its default.
         </p>
         <pre className="guide-code">{IMPORT_SETTINGS}</pre>
+      </section>
+
+      <section className="about-section">
+        <h3>Aim at a placement mode</h3>
+        <p>
+          Each sheet maps into the disk through one of the studio's motion modes, and
+          each mode wants a slightly different sequence. Generate with a destination
+          in mind and add its line to your prompt.
+        </p>
+        <ul className="guide-practices">
+          {PLACEMENT_MODES.map((m) => (
+            <li key={m.name}>
+              <strong>{m.name}</strong> — {m.when}. <em>"{m.ask}"</em>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section className="about-section">

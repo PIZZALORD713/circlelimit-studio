@@ -31,7 +31,8 @@ npm run build    # type-check + production build
   seven placement modes: Sequential Ring, Radial Timeline, Spiral Motion, Symmetry
   Echo, Frame Interlock, Onion Skin Manuscript, and Zoetrope Ring — each viewable as
   a static motion map or animated with the playback bar (speed, loop, ping-pong,
-  scrubbing).
+  scrubbing). To generate your own sheets with any AI image generator, see the
+  in-app **Prompt Guide** (the `/guide` route).
 
 ## Geometry
 
