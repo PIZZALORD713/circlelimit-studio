@@ -92,7 +92,9 @@ Motif variants are pre-rendered to offscreen canvases per palette color; the ren
 loop is pure `drawImage` stamping. Placements are memoized on geometry settings and
 capped by quality mode (Draft / Balanced / High / Poster).
 
-See [PLAN.md](PLAN.md) for the full product plan, algorithms, and Phase 2 roadmap.
+See [PLAN.md](PLAN.md) for the full product plan and algorithms, and
+[PHASE2.md](PHASE2.md) for the Phase 2 proposal (scene URLs, recipe gallery,
+natural-language control, true `{p, q}` tiling, export presets + showcase).
 
 ## Legal note
 
