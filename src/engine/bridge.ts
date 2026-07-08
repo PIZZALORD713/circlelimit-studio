@@ -20,12 +20,11 @@ import { SPRITE_PLACEMENT_MODES } from "../sprites/spriteMapping";
 import { DEMO_SHEETS, type DemoSheet } from "../sprites/demoSheets";
 import {
   CONTROL_SCHEMA,
-  STORE_OF,
-  coerceValue,
   describeControls,
   type ControlSpec,
-  type StoreName,
 } from "./controlSchema";
+import { routeFlatPatch } from "./patchRouter";
+import { sceneToHash, type Scene } from "../scenes/sceneCodec";
 
 export const BRIDGE_VERSION = 1;
 
@@ -38,6 +37,10 @@ export interface BridgeDeps {
   frameCount: number;
   placementCount: number;
   selectDemo: (demo: DemoSheet) => void;
+  /** Current scene (diff-vs-defaults + demo ref), for share links. */
+  buildSceneObject: () => Scene;
+  /** Apply a scene from any accepted input form. */
+  loadSceneInput: (input: string | object) => Promise<boolean>;
 }
 
 type StateListener = (state: Record<string, unknown>) => void;
@@ -82,6 +85,13 @@ export interface CircleLimitAPI {
   exportJSON(): string;
   importJSON(json: string): boolean;
 
+  /** Current scene: version, non-default controls, optional demo-sheet id. */
+  getScene(): Scene;
+  /** Shareable URL that reproduces the current scene pixel-exactly. */
+  getSceneURL(): Promise<string>;
+  /** Load a scene from an object, JSON, share URL, or `#s=…` hash. */
+  loadScene(input: string | object): Promise<boolean>;
+
   /** Subscribe to state changes; returns an unsubscribe fn. */
   subscribe(listener: StateListener): () => void;
 }
@@ -110,13 +120,6 @@ function blobToDataURL(blob: Blob): Promise<string> {
   });
 }
 
-const UPDATERS: Record<StoreName, keyof StudioState> = {
-  settings: "update",
-  imageOptions: "updateImageOptions",
-  spriteConfig: "updateSpriteConfig",
-  animation: "updateAnimation",
-};
-
 /**
  * Install and keep fresh `window.circleLimit`. The API object is created once
  * and stable; every method reads live state through a ref, so external callers
@@ -128,40 +131,8 @@ export function useCircleLimitBridge(deps: BridgeDeps): void {
   const listenersRef = useRef(new Set<StateListener>());
 
   useEffect(() => {
-    const routePatch = (
-      input: Record<string, unknown> | string,
-    ): string[] => {
-      const { studio } = depsRef.current;
-      let obj: Record<string, unknown>;
-      try {
-        obj = typeof input === "string" ? JSON.parse(input) : input;
-      } catch {
-        return [];
-      }
-      if (!obj || typeof obj !== "object") return [];
-
-      const byStore: Record<StoreName, Record<string, unknown>> = {
-        settings: {},
-        imageOptions: {},
-        spriteConfig: {},
-        animation: {},
-      };
-      const applied: string[] = [];
-      for (const [key, raw] of Object.entries(obj)) {
-        const store = STORE_OF[key];
-        if (!store) continue;
-        const value = coerceValue(key, raw);
-        if (value === undefined) continue;
-        byStore[store][key] = value;
-        applied.push(key);
-      }
-      for (const store of Object.keys(byStore) as StoreName[]) {
-        const patch = byStore[store];
-        if (Object.keys(patch).length === 0) continue;
-        (studio[UPDATERS[store]] as (p: Record<string, unknown>) => void)(patch);
-      }
-      return applied;
-    };
+    const routePatch = (input: Record<string, unknown> | string): string[] =>
+      routeFlatPatch(depsRef.current.studio, input);
 
     const liveCanvas = (): HTMLCanvasElement | null =>
       document.querySelector<HTMLCanvasElement>(".canvas-stage canvas");
@@ -227,6 +198,13 @@ export function useCircleLimitBridge(deps: BridgeDeps): void {
       },
       exportJSON: () => depsRef.current.studio.exportSettings(),
       importJSON: (json) => depsRef.current.studio.importSettings(json),
+
+      getScene: () => depsRef.current.buildSceneObject(),
+      getSceneURL: async () => {
+        const hash = await sceneToHash(depsRef.current.buildSceneObject());
+        return `${location.origin}${location.pathname}${location.search}${hash}`;
+      },
+      loadScene: (input) => depsRef.current.loadSceneInput(input),
 
       subscribe: (listener) => {
         listenersRef.current.add(listener);

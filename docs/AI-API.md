@@ -89,6 +89,21 @@ The API object is stable; every method reads live state.
 | `exportJSON()` / `importJSON(str)` | Full settings round-trip |
 | `subscribe(fn)` | Fires `fn(state)` on any change; returns unsubscribe |
 
+### Scenes — mint and consume share links
+
+| Method | Effect |
+| --- | --- |
+| `getScene()` | Current scene: `{ v, patch, demo? }` — only non-default controls plus the bundled demo-sheet id, if any |
+| `getSceneURL()` | Promise of a share URL (`…#s=<deflated base64url>`) that reproduces the scene pixel-exactly |
+| `loadScene(input)` | Apply a scene from a `Scene` object, its JSON, a full share URL, or a bare `#s=…` hash. Promise of success |
+
+Scenes apply through the same validated patch route as `patch()`, so values
+are clamped and unknown keys are skipped. Assets travel by reference: bundled
+demo sheets reproduce exactly; uploaded images/sheets are never embedded (the
+restored scene asks the user to re-add them). The live studio also keeps
+`location.hash` up to date as state changes — reading `location.href` after a
+patch is equivalent to `getSceneURL()`.
+
 > **Timing note:** `set`/`patch` return synchronously, but `getState`/`get`/
 > `snapshot` reflect the *last committed render*. After a patch, wait one frame
 > (or use `subscribe`) before reading state or a snapshot back.

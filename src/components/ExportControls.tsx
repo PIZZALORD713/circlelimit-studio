@@ -4,6 +4,7 @@ import { bestVideoFormat } from "../export/exportAnimation";
 
 interface ExportControlsProps {
   studio: StudioState;
+  onCopySceneLink: () => void;
   onExportPNG: (transparent: boolean) => void;
   onExportSequence: () => void;
   onExportGIF: () => void;
@@ -15,6 +16,7 @@ interface ExportControlsProps {
 
 export function ExportControls({
   studio,
+  onCopySceneLink,
   onExportPNG,
   onExportSequence,
   onExportGIF,
@@ -29,8 +31,9 @@ export function ExportControls({
 
   return (
     <section className="panel-section" aria-label="Export controls">
-      <h3>Export</h3>
+      <h3>Share &amp; export</h3>
       <div className="button-column">
+        <button onClick={onCopySceneLink}>Copy scene link</button>
         <button disabled={busy} onClick={() => onExportPNG(false)}>
           Export PNG
         </button>
@@ -84,9 +87,11 @@ export function ExportControls({
         />
       </div>
       <p className="hint">
-        Settings JSON captures geometry, style, and sprite config — uploaded images are
-        not embedded. GIF and video exports use the playback speed and ping-pong
-        settings; video records in real time.
+        A scene link puts the whole scene in the URL — same seed, same motion,
+        pixel-exact (bundled demo sheets travel by id; uploads are not embedded).
+        Settings JSON captures geometry, style, and sprite config. GIF and video
+        exports use the playback speed and ping-pong settings; video records in
+        real time.
       </p>
     </section>
   );

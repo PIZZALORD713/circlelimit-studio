@@ -39,6 +39,15 @@ import { CircleLimitCanvas } from "./components/CircleLimitCanvas";
 import { PlaybackBar } from "./components/PlaybackBar";
 import { InspectorPanel } from "./components/InspectorPanel";
 import { useCircleLimitBridge } from "./engine/bridge";
+import { routeFlatPatch } from "./engine/patchRouter";
+import {
+  SCENE_VERSION,
+  diffAgainstDefaults,
+  sceneFromHash,
+  sceneFromInput,
+  sceneToHash,
+  type Scene as SharedScene,
+} from "./scenes/sceneCodec";
 
 type Route = "studio" | "about";
 
@@ -250,17 +259,139 @@ export default function App() {
     [applyDemo],
   );
 
-  // Open the app on a live starling tessellation so the strongest feature is
-  // visible with zero clicks. Runs once; upload/selection cancels the intent.
+  // ---- Scenes (share links) ---------------------------------------------
+  // A scene = non-default controls + optional demo-sheet id, deflated into
+  // the URL hash (#s=…). Uploaded assets are never embedded; scenes built on
+  // them restore every setting and ask the user to re-add the asset.
+  const applyScene = useCallback(
+    async (scene: SharedScene, announce: boolean): Promise<boolean> => {
+      const demo = scene.demo
+        ? DEMO_SHEETS.find((d) => d.id === scene.demo)
+        : undefined;
+      if (demo) await applyDemo(demo, false, true);
+      routeFlatPatch(studio, scene.patch);
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        studio.updateAnimation({ playing: false });
+      }
+      if (announce) {
+        const needsSheet =
+          !demo &&
+          (scene.patch.inputMode === "spritesheet" ||
+            scene.patch.inputMode === undefined);
+        say(
+          needsSheet
+            ? "Scene restored — add a sprite sheet to complete it."
+            : scene.patch.inputMode === "image"
+              ? "Scene restored — add an image to complete it."
+              : "Scene restored from link.",
+        );
+      }
+      return true;
+    },
+    [applyDemo, studio, say],
+  );
+
+  // Boot: restore a scene from the URL if present; otherwise open on a live
+  // starling tessellation so the strongest feature is visible with zero clicks.
   const didAutoloadRef = useRef(false);
+  const bootDoneRef = useRef(false);
+  const lastWrittenHashRef = useRef<string | null>(null);
   useEffect(() => {
     if (didAutoloadRef.current) return;
     didAutoloadRef.current = true;
-    const demo = DEMO_SHEETS.find((d) => d.id === DEFAULT_DEMO_ID);
-    if (!demo) return;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    void applyDemo(demo, false, !reduced);
-  }, [applyDemo]);
+    void (async () => {
+      const scene = await sceneFromHash(location.hash);
+      if (scene) {
+        await applyScene(scene, true);
+      } else {
+        const demo = DEMO_SHEETS.find((d) => d.id === DEFAULT_DEMO_ID);
+        if (demo) {
+          const reduced = window.matchMedia(
+            "(prefers-reduced-motion: reduce)",
+          ).matches;
+          await applyDemo(demo, false, !reduced);
+        }
+      }
+      bootDoneRef.current = true;
+    })();
+  }, [applyDemo, applyScene]);
+
+  // Loading a pasted scene link into an already-open studio (back/forward or
+  // a new #s=… in the address bar) applies it live.
+  useEffect(() => {
+    const onHashChange = () => {
+      if (!bootDoneRef.current) return;
+      if (location.hash === lastWrittenHashRef.current) return;
+      void (async () => {
+        const scene = await sceneFromHash(location.hash);
+        if (scene) await applyScene(scene, true);
+      })();
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, [applyScene]);
+
+  const sceneObject = useMemo<SharedScene>(
+    () => ({
+      v: SCENE_VERSION,
+      patch: diffAgainstDefaults({
+        ...s,
+        ...imageOptions,
+        ...spriteConfig,
+        ...animation,
+      }),
+      ...(activeDemoId ? { demo: activeDemoId } : {}),
+    }),
+    [s, imageOptions, spriteConfig, animation, activeDemoId],
+  );
+
+  // Keep the URL hash live (debounced) so the address bar is always a
+  // copyable save file. replaceState avoids history spam; writes wait for the
+  // boot scene to finish applying so a default hash never overwrites a link.
+  const sceneFingerprint = JSON.stringify(sceneObject);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (!bootDoneRef.current) return;
+      void (async () => {
+        const hash = await sceneToHash(sceneObject);
+        if (location.hash === hash) return;
+        lastWrittenHashRef.current = hash;
+        history.replaceState(
+          history.state,
+          "",
+          location.pathname + location.search + hash,
+        );
+      })();
+    }, 400);
+    return () => clearTimeout(t);
+    // route is a dep so navigation (which rewrites the path without the
+    // hash) gets the scene re-appended.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sceneFingerprint, route]);
+
+  const handleCopySceneLink = useCallback(async () => {
+    try {
+      const hash = await sceneToHash(sceneObject);
+      const url = `${location.origin}${location.pathname}${location.search}${hash}`;
+      await navigator.clipboard.writeText(url);
+      say(
+        activeDemoId || s.inputMode === "prompt"
+          ? "Scene link copied — reproduces exactly."
+          : "Scene link copied — settings only; uploads are not embedded.",
+      );
+    } catch {
+      say("Could not copy the scene link.");
+    }
+  }, [sceneObject, activeDemoId, s.inputMode, say]);
+
+  const loadSceneInput = useCallback(
+    async (input: string | object): Promise<boolean> => {
+      const scene = await sceneFromInput(input);
+      if (!scene) return false;
+      return applyScene(scene, false);
+    },
+    [applyScene],
+  );
 
   // ---- Export handlers ---------------------------------------------------
   const currentAnimOffset = animation.playing ? liveFrame : animation.scrubFrame;
@@ -275,6 +406,8 @@ export default function App() {
     frameCount: s.inputMode === "spritesheet" ? frames.length : 0,
     placementCount: placements.length,
     selectDemo: handleSelectDemo,
+    buildSceneObject: () => sceneObject,
+    loadSceneInput,
   });
 
   const handleExportPNG = useCallback(
@@ -500,6 +633,7 @@ export default function App() {
           <div className="panel-group" data-group="export">
             <ExportControls
               studio={studio}
+              onCopySceneLink={handleCopySceneLink}
               onExportPNG={handleExportPNG}
               onExportSequence={handleExportSequence}
               onExportGIF={handleExportGIF}
